@@ -2,13 +2,12 @@ package org.example.camunda.bpm;
 
 import java.util.Arrays;
 import java.sql.SQLException;
-import javax.annotation.PostConstruct;
 
 import org.apache.ibatis.logging.LogFactory;
-import org.camunda.bpm.engine.ProcessEngine;
 import org.camunda.bpm.engine.runtime.ProcessInstance;
 import org.camunda.bpm.engine.test.Deployment;
 import org.camunda.bpm.engine.test.ProcessEngineRule;
+import org.camunda.bpm.engine.test.mock.Mocks;
 import org.camunda.bpm.engine.variable.Variables;
 import org.camunda.bpm.engine.variable.Variables.SerializationDataFormats;
 import org.camunda.bpm.engine.variable.value.ObjectValue;
@@ -17,26 +16,14 @@ import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
-import org.springframework.test.context.junit4.SpringRunner;
 
 import static org.camunda.bpm.engine.test.assertions.ProcessEngineTests.*;
 import static org.junit.Assert.*;
-import static org.assertj.core.api.Assertions.*;
-
 
 /**
  * Test case starting an in-memory database-backed Process Engine.
  */
-@RunWith(SpringRunner.class)
-@SpringBootTest
-public class ProcessUnitTest {
-
-  @Autowired
-  private ProcessEngine processEngine;
+public class InMemoryH2Test {
 
   static {
     LogFactory.useSlf4jLogging(); // MyBatis
@@ -44,22 +31,19 @@ public class ProcessUnitTest {
 
   @ClassRule
   @Rule
-  public static ProcessEngineRule rule;
-
-  @PostConstruct
-  void initRule() {
-    rule = TestCoverageProcessEngineRuleBuilder.create(processEngine).build();
-  }
+  public static ProcessEngineRule rule = TestCoverageProcessEngineRuleBuilder.create().build();
 
   @Before
   public void setup() {
-    init(processEngine);
+    init(rule.getProcessEngine());
   }
 
   @Test
-  @Deployment(resources = "process.bpmn") // only required for process test coverage
+  @Deployment(resources = "process.bpmn")
   public void testHappyPath() throws SQLException {
     // Drive the process by API and assert correct behavior by camunda-bpm-assert
+
+    Mocks.register("logger", new LoggerDelegate());
 
     ObjectValue documents = Variables
       .objectValue(Arrays.asList(new String[]{"one", "two", "three"}))
@@ -74,7 +58,10 @@ public class ProcessUnitTest {
 
     assertThat(processInstance).isWaitingAt("UserTask_Approve");
 
-    // To inspect the DB connect your browser to: http://localhost:8080/h2-console/
+    // To inspect the DB, run the following line in the debugger
+    // then connect your browser to: http://localhost:8082
+    // and enter the JDBC URL: jdbc:h2:mem:camunda
+//    org.h2.tools.Server.createWebServer("-web").start();
 
   }
 
